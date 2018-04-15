@@ -2,7 +2,7 @@
 
 # Copyright 2018 Eric Lund
 #
-# The SNR Market Analysis Tool by Eric Lund is licensed under a
+# The MDI Market Analysis Tool by Eric Lund is licensed under a
 # Creative Commons Attribution-ShareAlike 4.0 International License.
 # Under this license you have the right to use and distribute copies
 # of this work and modify them for other purposes as long as you

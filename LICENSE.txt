@@ -1,0 +1,16 @@
+The MDI Market Analysis Tool by Eric Lund is licensed under a
+Creative Commons Attribution-ShareAlike 4.0 International License.
+Under this license you have the right to use and distribute copies
+of this work and modify them for other purposes as long as you
+preserve this notice in all copies or derivatives and as long as you
+do not restrict the terms of the original license further.
+
+The foregoing is not a legal description of the licence, for the
+full legal description, please read the actual license here:
+
+    http://creativecommons.org/licenses/by-sa/4.0/
+
+This software is provided for research purposes only. The author
+assumes no responsibility for damages resulting from its use in any
+capacity.  No warranty or claim of suitability for any purpose is
+given.
