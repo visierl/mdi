@@ -26,31 +26,58 @@ import sys         # provides system tools and data including command arguments
 import getopt      # provides command line parsing tools
 import datetime    # provides tools for manipulating dates
 import csv         # provides tools for manipulating CSV input
-import re          # provides regular expression matching tools
 
 def error(str):
+    """Report errors...
+
+    """
     sys.stderr.write("%s\n" % str)
 
 class Row:
-    def __init__(self, cname, d, o, h, l, c, v, oi, snr = None):
-        self.column_name = cname
-        self.date = datetime.datetime.strptime(d, '%m/%d/%Y')
-        self.open = float(o)
-        self.low = float(l)
-        self.high = float(h)
-        self.close = float(c)
-        self.volume = v
-        self.open_interest = oi
+    """A of market data to be analyzed.
+
+    """
+    def __init__(
+            self,
+            market, date, opening, high, low, close, volume, open_interest,
+            snr = None
+    ):
+        """Constructor
+
+        """
+        self.market_name = market
+        if '/' in d:
+            self.date = datetime.datetime.strptime(date, '%m/%d/%Y')
+        else:
+            self.date = datetime.datetime.strptime(date, '%Y%m%d')
+        self.open = float(opening)
+        self.low = float(low)
+        self.high = float(high)
+        self.close = float(close)
+        self.volume = volume
+        self.open_interest = open_interest
         self.diff = 0
         self.signal_to_noise = snr
 
-    # Check the sanity of an open (o), high (h), low (l), and close (c)
-    # set.  The high should be greater than or equal to the low.  The open
-    # should be greater than or equal to the low and less than or equal to
-    # the high and the close should be greater than or equal to the low
-    # and less than or equal to the high.  If any of these is not true,
-    # return an error string describing the first problem found.
     def sanity_check(self, previous = None):
+        """Check the sanity of an open, high, low, and
+        close set:
+        
+        - the high should be greater than or equal tohe low
+        - the open should be greater than or equal to the low
+        - the open should be less than or equal to the high
+        - the close should be greater than or equal to the low
+        - the close should be less than or equal to the high
+
+        Also check that the current row of data is not a duplicate by
+        date of the previous row (if provided) and that the dates of
+        two rows (previous and current) are in ascending order.
+
+        If any of this is not true, return an error string
+        describing the first problem found.
+
+        """
+
         if self.high < self.low:
             return "high (%.2f) is less than low (%.2f)" % (self.high,
                                                             self.low)
@@ -77,39 +104,47 @@ class Row:
         return None
 
     def difference(self, previous = None):
+        """Calculate the difference between this row and a provided
+        "previous" row. The difference is defined as the difference
+        between the 'close' values. If the "previous" row is not
+        provided, the assumption is this is the first row in the data
+        and has a difference of 0.
+
+        """
         if previous == None:
             # Diff is initialized to 0 and there is nothing else to do
             # here, so leave it zero and return.
             return
         self.diff = float(abs(self.close - previous.close))
         return self.diff
-        
             
 
-# Function to read in a CSV file into an array.  The first element of
-# the array is a string with the base name of the file (minus the .csv
-# extension) in it.  The remaining elements of the array are
-# Row objects containing the data found in the CSV data.
-# The value returned is the array of Rows.
-#
-# Each row of data is sanity checked on the way in.  The following
-# conditions are looked for:
-#
-# + Date not strictly increasing
-# + High greater than low
-# + Open less than low
-# + Open greater than high
-# + Close less than low
-# + Close greater than high
-#
-# If any of these conditions are found, the row is omitted from the
-# data set and recorded in a separate file.
 def read_csv_file(name):
+    """Read in a CSV file into an array.  The first element of the
+    array is a string with the base name of the file (minus the .csv
+    extension) in it.  The remaining elements of the array are Row
+    objects containing the data found in the CSV data.  The value
+    returned is the array of Rows.
+
+    Each row of data is sanity checked on the way in.  The following
+    conditions are looked for:
+
+    + Date not strictly increasing
+    + High greater than low
+    + Open less than low
+    + Open greater than high
+    + Close less than low
+    + Close greater than high
+
+    If any of these conditions are found, the row is omitted from the
+    data set and recorded in a separate file.
+
+    """
     # Set up an empty array to return
     ret = []
 
     # Strip off the '.csv' from the name for other use...
-    base = path.basename(name)[:-4]
+    base = path.basename(name).split('.')[0]
 
     # Set up an empty array of error rows as well...
     errors = []
@@ -124,24 +159,45 @@ def read_csv_file(name):
 
         # Walk through the CSV input data, picking up all of the columns:
         #
-        #    date         ('d')
-        #    open         ('o')
-        #    high         ('h')
-        #    low          ('l')
-        #    close        ('c')
-        #    openInterest ('oi')
+        #    date
+        #    open
+        #    high
+        #    low 
+        #    clos
+        #    open_interest
         #
         # and build the output array.
         previous_row = None
-        r = 0
-        d,o,h,l,c,v,oi = 7 * [None]
+        row_num = 0
+        date,opening,high,low,close,volume,open_interest = 7 * [None]
         try:
-            for d,o,h,l,c,v,oi in data:
+            # Grab row data in 'r' and then grab the first 7 values
+            # instead of expanding them out in the loop  so we can
+            # ignore extra columns.
+            for row_data in data:
+                # Extract the data we care about
+                date,opening,high,low,close,volume,open_interest = row_data[:7]
+
+                # Skip lines that have non-numeric data...
+                try:
+                    _ = float(o)
+                except ValueError:
+                    continue
+
                 # Advance 'row' to the current row number for error
                 # reporting purposes
-                r += 1
+                row_num += 1
 
-                row = Row(base, d, o, h, l, c, v, oi)
+                row = Row(
+                    base,
+                    date,
+                    opening,
+                    high,
+                    low,
+                    close,
+                    volume,
+                    open_interest
+                )
 
                 # Check that the open (o), high (h), low (l), and
                 # close (c) values seems to be sane, since they can be
@@ -151,7 +207,19 @@ def read_csv_file(name):
                 if err != None:
                     # There was an error. Record it in the errors
                     # array for later saving
-                    errors += [[d,o,h,l,c,v,oi,r,err]]
+                    errors += [
+                        [
+                            date,
+                            opening,
+                            high,
+                            low,
+                            close,
+                            volume,
+                            open_interest,
+                            row_num,
+                            err
+                        ]
+                    ]
                     continue
 
                 # Compute the difference value for the close of this
@@ -167,7 +235,7 @@ def read_csv_file(name):
         except Exception as e:
             error("error detected in file '%s' at row %d - %s" % (name, r, str(e)))
             err = "error detected in file '%s' at row %d - %s" % (name, r, str(e))
-            errors += [[d,o,h,l,c,v,oi,r,err]]
+            errors += [[date,opening,h,l,c,v,oi,r,err]]
     if len(errors) > 0:
         # There were errors seen, produce a .txt file (so it won't
         # show up as a .csv file) that contains the errors found).
@@ -182,9 +250,12 @@ def read_csv_file(name):
             wr.writerows(errors)
     return ret
 
-# Read in either a CSV file or a directory full of CSV files and
-# return an array of columns containing the data from each file read.
 def read_columns(filename):
+    """Read in either a CSV file or a directory full of CSV files and
+    return an array of columns containing the data from each file
+    read.
+
+    """
     ret = []
     if path.isdir(filename):
         # This is a directory.
@@ -197,7 +268,7 @@ def read_columns(filename):
             if f[:15] == 'signal_to_noise':
                 continue
             ret += read_columns(path.join(filename, f))
-    elif path.isfile(filename) and filename[-4:].lower() == '.csv':
+    elif path.isfile(filename):
         # This is a CSV file, read in the data.  We build a list for
         # each column which contains the column and its active row
         # (which we will use later when building the output).  For
@@ -205,15 +276,17 @@ def read_columns(filename):
         ret += [[read_csv_file(filename), 0]]
     return ret
 
-# Compute the rolling signal to noise for the current row in the given
-# column of data, by looking back 'period' entries from the current
-# row and computing the ratio of the sum of the absolute differences
-# between each pair of sequential close values in each entry and the
-# absolute difference between the first entry and the current entry.
-# If the current row has less than 'period' rows preceding it, return
-# 'insufficient data' for a value.  Otherwise return the signal to
-# noise ratio value as a floating point value.
 def rolling_snr(column, row_number, period):
+    """Compute the rolling signal to noise for the current row in the
+    given column of data, by looking back 'period' entries from the
+    current row and computing the ratio of the sum of the absolute
+    differences between each pair of sequential close values in each
+    entry and the absolute difference between the first entry and the
+    current entry.  If the current row has less than 'period' rows
+    preceding it, return 'insufficient data' for a value.  Otherwise
+    return the signal to noise ratio value as a floating point value.
+
+    """
     # Check whether the condition for insufficient data is met, in
     # which case don't bother processing anything, just return
     # 'insufficient data'.
@@ -244,25 +317,32 @@ def rolling_snr(column, row_number, period):
                    column[row_number - period].close))
     return big_change / small_change_sum
 
-# Compute the rolling SNRs on a column and return a new column with (
-# date, close, snr ) in each row.
 def compute_snrs(column, period):
+    """Compute the rolling SNRs on a column and return a new column
+    with ( date, close, snr ) in each row.
+
+    """
     for r in range(0, len(column)):
         column[r].signal_to_noise = rolling_snr(column, r, period)
     return
 
 def first_date(element):
-    # The first element of a column (c[0]) is the name, so the first
-    # data element is c[1].  Return the date from the first data
-    # element.
+    """The first element of a column (c[0]) is the name, so the first
+    data element is c[1].  Return the date from the first data
+    element.
+
+    """
     column,active_row = element
     return column[0].date
 
-# Compute the lowest date for the current collection of rows that are
-# candidates for consumption.  This is done by going through the
-# candidates and finding the lowest date.  If no date is found then
-# all of the candidate columns have been exhausted, so return None.
 def lowest_date(columns):
+    """Compute the lowest date for the current collection of rows that
+    are candidates for consumption.  This is done by going through the
+    candidates and finding the lowest date across all of the active
+    rows in each candidate.  If no date is found then all of the
+    candidate columns have been exhausted, so return None.
+
+    """
     date = None
     for column,active_row in columns:
         if active_row < len(column):
@@ -271,6 +351,11 @@ def lowest_date(columns):
     return date
 
 def merge_results(columns):
+    """Merge market result columns by date placing the market close
+    and signal to noise ratio of each market for each date in the
+    results.
+
+    """
     # Sort the columns in the input by the first date present in each
     # column
     columns.sort(key = first_date)
@@ -283,13 +368,13 @@ def merge_results(columns):
     # followed, for each input column, by the name of the column and
     # two blank columns.
     row = [None]
-    for column,active_row in columns:
-        row += [column[0].column_name, None]
+    for column,_ in columns:
+        row += [column[0].market_name, None]
     ret += [row]
 
     # Second row is headings for Date and each of the columns
     row = ["Date"]
-    for column,active_row in columns:
+    for column,_ in columns:
         row += ["Close", "SNR"]
     row += ["MDI"]
     ret += [row]
@@ -304,8 +389,8 @@ def merge_results(columns):
         mdi_sum = 0.0
         mdi_count = 0
         column_count = len(columns)
-        for c in columns:
-            column,active_row = c
+        for col in columns:
+            column,active_row = col
             if active_row >= len(column):
                 # The active row for this column is out of range, skip
                 # it, there are no more data in this column.
@@ -316,7 +401,7 @@ def merge_results(columns):
                 # advance the active row in this column.
                 row += [column[active_row].close,
                         column[active_row].signal_to_noise]
-                c[1] = active_row + 1
+                col[1] = active_row + 1 # advance the active row
                 if type(column[active_row].signal_to_noise) == type(1.0):
                     mdi_sum += column[active_row].signal_to_noise
                     mdi_count += 1
@@ -332,10 +417,15 @@ def merge_results(columns):
             mdi = "Insufficient Data"
         row += [mdi]
         ret += [row]
+        # Now that we have a new active row in each of the columns,
+        # advance to the lowest date in all of those new active rows
+        # and continue.
         date = lowest_date(columns)
     return ret
 
 def usage(str):
+    """ Print a usage message and exit.
+    """
     if str != None:
         error("%s\n" % str)
     error("""
@@ -362,6 +452,10 @@ Where:
     exit(1)
 
 def main(argv):
+    """Compute rolling signal-to-noise ratio's on a the provided
+    market data.
+
+    """
     # By default, us a 97 day period for computing rolling SNRs.
     period = 97
 

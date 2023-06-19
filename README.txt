@@ -37,7 +37,7 @@ The output CSV files have the following columns:
     + Computed Signal to Noise Ratio
   - Computed MDI Value
 
-The Signal to Noise Ration and MDI columns may contain a number
+The Signal to Noise Ratio and MDI columns may contain a number
 indicating a computed result or the string "Insufficient Data" if the
 necessary data to complete the computation is missing.
 
